@@ -103,12 +103,22 @@ int main (int argc, char *argv[])
 	for( int counter = 0 ; counter < 1 ; ++counter )
 	{
 		//set your transmitter(page 18 19)
+        OnOffHelper onOff("ns3::UdpSocketFactory", InetSocketAddress(i.GetAddress(1, 0), CBR_Port));
+        onOff.SetConstantRate(DataRate(CBR_Rate_bps), CBR_PacketSize_Byte);
+        
+        CBR_Tx_App.Add(onOff.Install(c.Get(0)));
+        CBR_Tx_App.Start(Seconds(Traffic_StartTime_sec));
+        CBR_Tx_App.Stop(Seconds(Traffic_EndTime_sec));
 	}
 
 	// Receiver
 	for( int counter = 0 ; counter < 1 ; ++counter )
-	{
+	{   
 		//set your receiver(page 20)
+        PacketSinkHelper sink("ns3::UdpSocketFactory", InetSocketAddress(i.GetAddress(1, 0), CBR_Port));
+        CBR_Rx_App.Add(sink.Install(c.Get(1)));
+        CBR_Rx_App.Start(Seconds(0.0));
+        CBR_Rx_App.Stop(Seconds(TotalSimulationTime_sec));
 	}
   
         Simulator::Stop (Seconds (TotalSimulationTime_sec));
@@ -136,6 +146,10 @@ int main (int argc, char *argv[])
 			if( ft.destinationPort == CBR_Port )
 			{
 				// insert your statistics calculation here(ppt page26)
+                Avg_Base = counter->second.txPackets;
+                Avg_e2eDelaySec = counter->second.delaySum.GetSeconds() / Avg_Base;
+                Total_RxByte = counter->second.rxBytes;
+                Avg_PDR = (double)counter->second.rxPackets / Avg_Base;
 			}
 		}
 	}
