@@ -149,7 +149,7 @@ int main (int argc, char *argv[])
                 Avg_Base = counter->second.rxPackets;
                 Avg_e2eDelaySec += (double)counter->second.delaySum.GetSeconds() / (double)Avg_Base;;
                 Total_RxByte = counter->second.rxBytes;
-                Avg_PDR = (double)counter->second.rxPackets / (double)Avg_Base;
+                Avg_PDR = (double)counter->second.rxPackets / (double)counter->second.txPackets;
 			}
 		}
 	}
