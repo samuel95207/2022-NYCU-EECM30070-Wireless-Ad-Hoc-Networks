@@ -25,7 +25,7 @@ int main (int argc, char *argv[])
         double rss = -80;  // -dBm
 
         std::string CBR_Rate_bps = "860kbps";	// [ 860 , 960 , 1060 , 1160 ]
-        uint32_t Queue_Size_Packet = 30;	// [ 20 , 30 , 40 , 50 ]
+        uint32_t Queue_Size_Packet = 20;	// [ 20 , 30 , 40 , 50 ]
 
         NodeContainer c;
         c.Create (2);
@@ -117,7 +117,7 @@ int main (int argc, char *argv[])
 		//set your receiver(page 20)
         PacketSinkHelper sink("ns3::UdpSocketFactory", InetSocketAddress(i.GetAddress(1, 0), CBR_Port));
         CBR_Rx_App.Add(sink.Install(c.Get(1)));
-        CBR_Rx_App.Start(Seconds(0.0));
+        CBR_Rx_App.Start(Seconds(Traffic_StartTime_sec));
         CBR_Rx_App.Stop(Seconds(TotalSimulationTime_sec));
 	}
   
@@ -131,7 +131,7 @@ int main (int argc, char *argv[])
 	int Avg_Base = 0;
 
 	std::cout << "Lab2 Simulation Start\n\n";
-    std::cout << "[ CBR Rate : " << CBR_Rate_bps << " + " << "Queue Size : " << Queue_Size_Packet << " Byte ] \n";
+    std::cout << "[ CBR Rate: " << CBR_Rate_bps << " + " << "Queue Size = " << Queue_Size_Packet << " Byte ] \n";
 
 	monitor->CheckForLostPackets ();
 	Ptr<Ipv4FlowClassifier> classifier = DynamicCast<Ipv4FlowClassifier> (flowmon.GetClassifier ());
@@ -146,25 +146,25 @@ int main (int argc, char *argv[])
 			if( ft.destinationPort == CBR_Port )
 			{
 				// insert your statistics calculation here(ppt page26)
-                Avg_Base = counter->second.txPackets;
-                Avg_e2eDelaySec = counter->second.delaySum.GetSeconds() / Avg_Base;
+                Avg_Base = counter->second.rxPackets;
+                Avg_e2eDelaySec += (double)counter->second.delaySum.GetSeconds() / (double)Avg_Base;;
                 Total_RxByte = counter->second.rxBytes;
-                Avg_PDR = (double)counter->second.rxPackets / Avg_Base;
+                Avg_PDR = (double)counter->second.rxPackets / (double)Avg_Base;
 			}
 		}
 	}
 
 	//-------------------------------------------------------------------------------------------
 	//Avg_e2eDelaySec =	
-	std::cout << "Average System End-to-End Delay : ";
+	std::cout << "Average System End-to-End Delay: ";
 	std::cout << Avg_e2eDelaySec << " [sec]\n";
 
     //Total_RxByte =
-	std::cout << "Total Rx Byte : ";
+	std::cout << "Total Rx Byte: ";
 	std::cout << Total_RxByte << "\n";
 	
 	//Avg_PDR =
-	std::cout << "Average Packet Delivery Ratio : ";
+	std::cout << "Average Packet Delivery Ratio: ";
 	std::cout << Avg_PDR << "\n";
 
     Simulator::Destroy ();
