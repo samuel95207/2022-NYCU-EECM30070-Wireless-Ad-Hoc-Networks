@@ -84,7 +84,7 @@ int main( int argc , char *argv[] )
 
 	// set position
 	int Start_XPos_meter , Start_YPos_meter , Start_ZPos_meter;
-	int Node_HorizonSpacing_meter = 100;
+	int Node_HorizonSpacing_meter = 170;
 	MobilityHelper WiFiSTA_Mobility;
 
 	Start_XPos_meter = Start_YPos_meter = Start_ZPos_meter = 0;
@@ -92,6 +92,11 @@ int main( int argc , char *argv[] )
   	//your code，建立topology，node的分布參考ppt p.4跟p.5
 	//建立方式可以使用 positionAlloc->Add (Vector (0.0, 0.0, 0.0));
 	//即是在position allocator中加入新的node，他的座標是(x,y,z)，node會依照建立順序分別為編號0,1,2,3,.....
+	WiFiSTA_PositionAllocator->Add(Vector(Start_XPos_meter, Start_YPos_meter, Start_ZPos_meter));
+	WiFiSTA_PositionAllocator->Add(Vector(Start_XPos_meter + Node_HorizonSpacing_meter, Start_YPos_meter, Start_ZPos_meter));
+	WiFiSTA_PositionAllocator->Add(Vector(Start_XPos_meter + Node_HorizonSpacing_meter, Start_YPos_meter - Node1and2_Distance_meter, Start_ZPos_meter));
+	WiFiSTA_PositionAllocator->Add(Vector(Start_XPos_meter + Node_HorizonSpacing_meter * 2, Start_YPos_meter - Node1and2_Distance_meter, Start_ZPos_meter));
+
 	WiFiSTA_Mobility.SetPositionAllocator( WiFiSTA_PositionAllocator );
 	WiFiSTA_Mobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
 	WiFiSTA_Mobility.Install( WiFiSTA_Node );
@@ -114,7 +119,7 @@ int main( int argc , char *argv[] )
 		WiFi.SetStandard( WIFI_PHY_STANDARD_80211ac );
 	WiFi.SetRemoteStationManager( "ns3::IdealWifiManager" );
 
-	std::string RtsCts_Activate_LowerBound = "????";//your code,可以參考ppt p.8
+	std::string RtsCts_Activate_LowerBound = "0";//your code,可以參考ppt p.8
 	Config::SetDefault( "ns3::WifiRemoteStationManager::RtsCtsThreshold" , StringValue( RtsCts_Activate_LowerBound ) );
 
 	double CenterFrequency_Hz = 5.0e+09 , SystemLoss = 1 , MinDistance_meter = 0 , NodeHeight_meter = 1.5;
@@ -129,7 +134,7 @@ int main( int argc , char *argv[] )
 	//記得修改CS_range跟TX_Range
 	double TxPower_Watt = 0.28183815 , TxAntennaGain = 1 , RxAntennaGain = 1 ,
 	       TxHeight_meter = NodeHeight_meter , RxHeight_meter = NodeHeight_meter ,
-	       CS_Range_meter = 100 , TX_Range_meter = 100 ,		
+	       CS_Range_meter = 300 , TX_Range_meter = 200 ,		
 	       Lambda_meter = ( 299792458.0 / CenterFrequency_Hz );
 		
 	// Set CS_Threshold
@@ -193,16 +198,28 @@ int main( int argc , char *argv[] )
 	//your code，參考ppt p.4跟p.5，看一下他們的node是怎麼傳的(Ex:node 0 to node 1)
 	//Tx是傳送端的
 	//Rx是接收端的
-	int Tx_Index[ TestCase_NumCommPair ] = {???,???}, Rx_Index[ TestCase_NumCommPair ] = {???,???};
+	int Tx_Index[ TestCase_NumCommPair ] = {0, 3}, Rx_Index[ TestCase_NumCommPair ] = {1, 2};
+	
 
 	for( int counter = 0 ; counter < TestCase_NumCommPair ; ++counter )
 	{
 		//your code,與lab2的code一樣，但要注意一下參數(Ex:Ipv4InterfaceContainer、Rx_Index[]、CBR_Port...等)
+		OnOffHelper onOff("ns3::UdpSocketFactory", InetSocketAddress(WiFiLink_InterfaceIP.GetAddress(Rx_Index[counter], 0), CBR_Port));
+        onOff.SetConstantRate(DataRate(CBR_Rate_bps), CBR_PacketSize_Byte);
+        
+        CBR_Tx_App.Add(onOff.Install(WiFiSTA_Node.Get(Tx_Index[counter])));
+        CBR_Tx_App.Start(Seconds(Traffic_StartTime_sec));
+        CBR_Tx_App.Stop(Seconds(Traffic_EndTime_sec));
 	}
 	// Receiver
 	for( int counter = 0 ; counter < TestCase_NumCommPair ; ++counter )
 	{
 		//your code,與lab2的code一樣，但要注意一下參數(Ex:Ipv4InterfaceContainer、Rx_Index[]、CBR_Port...等)
+		PacketSinkHelper sink("ns3::UdpSocketFactory", InetSocketAddress(WiFiLink_InterfaceIP.GetAddress(Rx_Index[counter], 0), CBR_Port));
+
+        CBR_Rx_App.Add(sink.Install(WiFiSTA_Node.Get(Rx_Index[counter])));
+        CBR_Rx_App.Start(Seconds(Traffic_StartTime_sec));
+        CBR_Rx_App.Stop(Seconds(TotalSimulationTime_sec));
 	}
 
 
@@ -234,12 +251,14 @@ int main( int argc , char *argv[] )
 					Avg_SystemThroughput_bps +=
 					( 
 						//your code，可以參考lab2的講義
+						(double)counter->second.rxBytes * 8 / (double)(counter->second.timeLastRxPacket.GetSeconds() - counter->second.timeFirstTxPacket.GetSeconds())
 					);
 
 					
 					Avg_PLR +=
 					(
 					   //your code，可以參考lab2的講義
+					   ((double)(counter->second.txPackets - counter->second.rxPackets)/(double)counter->second.txPackets)
 					);
 				++Avg_Base;
 				
