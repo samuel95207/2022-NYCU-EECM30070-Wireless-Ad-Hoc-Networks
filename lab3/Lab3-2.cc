@@ -101,6 +101,14 @@ int main( int argc , char *argv[] )
 	//使用方式為mobility.SetPositionAllocator ("ns3::GridPositionAllocator","MinX",DoubleValue(???),"MinY",DoubleValue(???),...,UintegerValue(???),...,StringValue(???));
 	//總共有6種不同的parameter需要給值，分別為MinX,MinY,DeltaX,DeltaY,GridWidth,LayoutType
 	//MinX, MinY為起始位置、DeltaX，DeltaY為節點之間的距離、GridWidth為每行節點數目、LayoutType為佈局方式(Ex:RowFirst、ColumnFirst)
+	WiFiSTA_Mobility.SetPositionAllocator("ns3::GridPositionAllocator",
+											"MinX", DoubleValue(Start_XPos_meter),
+											"MinY", DoubleValue(Start_YPos_meter),
+											"DeltaX", DoubleValue(Node_Spacing_meter),
+											"DeltaY", DoubleValue(Node_Spacing_meter),
+											"GridWidth", UintegerValue(Topology_Size),
+											"LayoutType", StringValue("ColumnFirst")
+											);
 	WiFiSTA_Mobility.SetMobilityModel( "ns3::ConstantPositionMobilityModel" );
 	WiFiSTA_Mobility.Install( WiFiSTA_Node );
 
@@ -172,17 +180,31 @@ int main( int argc , char *argv[] )
 		//your code，參考ppt p.15、p.16、p.17，看一下他們的node是怎麼傳的(Ex:node 0 to node 1)
 		//Tx是傳送端的
 		//Rx是接收端的
-		int Tx_Index[ TestCase1_NumCommPair ] = {???}, Rx_Index[ TestCase1_NumCommPair ] = {???};
+		int Tx_Index[ TestCase1_NumCommPair ] = {0, 2, 6, 8}, Rx_Index[ TestCase1_NumCommPair ] = {1, 5, 3, 7};
+		// int Tx_Index[ TestCase2_NumCommPair ] = {0, 2, 5, 7, 8, 10, 13, 15}, Rx_Index[ TestCase2_NumCommPair ] = {1, 3, 6, 11, 4, 9, 12, 14};
+		// int Tx_Index[ TestCase3_NumCommPair ] = {5, 6, 7, 8, 9, 11, 13, 15, 16, 17, 18, 19}, Rx_Index[ TestCase3_NumCommPair ] = {0, 1, 2, 3, 4, 10, 14, 20, 21, 22, 23, 24};
+
 
 		// Transmitter
 		for( int counter = 0 ; counter < TestCase1_NumCommPair ; ++counter )
 		{
 			//your code,與lab2的code一樣，但要注意一下參數(Ex:Ipv4InterfaceContainer、Rx_Index[]、CBR_Port...等)
+			OnOffHelper onOff("ns3::UdpSocketFactory", InetSocketAddress(WiFiLink_InterfaceIP.GetAddress(Rx_Index[counter], 0), CBR_Port));
+        	onOff.SetConstantRate(DataRate(CBR_Rate_bps), CBR_PacketSize_Byte);
+	
+        	CBR_Tx_App.Add(onOff.Install(WiFiSTA_Node.Get(Tx_Index[counter])));
+        	CBR_Tx_App.Start(Seconds(Traffic_StartTime_sec));
+        	CBR_Tx_App.Stop(Seconds(Traffic_EndTime_sec));
 		}
 		// Receiver
 		for( int counter = 0 ; counter < TestCase1_NumCommPair ; ++counter )
 		{
 			//your code,與lab2的code一樣，但要注意一下參數(Ex:Ipv4InterfaceContainer、Rx_Index[]、CBR_Port...等)
+			PacketSinkHelper sink("ns3::UdpSocketFactory", InetSocketAddress(WiFiLink_InterfaceIP.GetAddress(Rx_Index[counter], 0), CBR_Port));
+
+        	CBR_Rx_App.Add(sink.Install(WiFiSTA_Node.Get(Rx_Index[counter])));
+        	CBR_Rx_App.Start(Seconds(Traffic_StartTime_sec));
+        	CBR_Rx_App.Stop(Seconds(TotalSimulationTime_sec));
 		}
 	
 	
@@ -214,11 +236,13 @@ int main( int argc , char *argv[] )
 				Avg_SystemThroughput_bps +=
 					( 
 						//your code
+						(double)counter->second.rxBytes * 8 / (double)(counter->second.timeLastRxPacket.GetSeconds() - counter->second.timeFirstTxPacket.GetSeconds())
 					);
 
 				Total_NumLostPacket += 
 					(
 						//your code 
+					   (double)(counter->second.txPackets - counter->second.rxPackets)
 					);
 		
 				++Avg_Base;
